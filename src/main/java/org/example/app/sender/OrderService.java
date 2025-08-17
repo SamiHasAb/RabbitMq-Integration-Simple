@@ -16,9 +16,16 @@ public class OrderService {
   private RabbitMQProperties properties;
 
   public void sendPayment(Payment payment) {
+    String queueType = "payment";
+    RabbitMQProperties.QueueConfig config = properties.getConfigs().get(queueType);
+
+    if (config == null) {
+      throw new IllegalArgumentException("Unknown queue type: " + queueType);
+    }
+
     rabbitTemplate.convertAndSend(
-        properties.getExchange(),
-        properties.getRoutingKey(),
+        config.getExchange(),
+        config.getRoutingKey(),
         payment
     );
   }

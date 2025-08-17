@@ -1,11 +1,34 @@
 rabbitmq:
-  payment:
-    exchange: payment.exchange
-    queue: payment.queue
-    routing-key: payment
-    dlx-exchange: dlx.exchange
-    dlq: payment.dlq
-    dlx-routing-key: dlx.payment
-    retry-exchange: retry.exchange
-    retry-queue: payment.retry.queue
-    retry-routing-key: retry.payment
+  configs:
+    payment:
+      exchange: payment.exchange
+      queue: payment.queue
+      routing-key: payment
+      dlx-exchange: dlx.exchange
+      dlq: payment.dlq
+      dlx-routing-key: dlx.payment
+      retry-exchange: retry.exchange
+      retry-queue: payment.retry.queue
+      retry-routing-key: retry.payment
+
+    notification:
+      exchange: notification.exchange
+      queue: notification.queue
+      routing-key: notification
+      dlx-exchange: dlx.exchange
+      dlq: notification.dlq
+      dlx-routing-key: dlx.notification
+      retry-exchange: retry.exchange
+      retry-queue: notification.retry.queue
+      retry-routing-key: retry.notification
+
+    order:
+      exchange: order.exchange
+      queue: order.queue
+      routing-key: order
+      dlx-exchange: dlx.exchange
+      dlq: order.dlq
+      dlx-routing-key: dlx.order
+      retry-exchange: retry.exchange
+      retry-queue: order.retry.queue
+      retry-routing-key: retry.order
