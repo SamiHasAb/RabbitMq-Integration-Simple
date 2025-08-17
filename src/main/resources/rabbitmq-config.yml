@@ -1,0 +1,11 @@
+rabbitmq:
+  payment:
+    exchange: payment.exchange
+    queue: payment.queue
+    routing-key: payment
+    dlx-exchange: dlx.exchange
+    dlq: payment.dlq
+    dlx-routing-key: dlx.payment
+    retry-exchange: retry.exchange
+    retry-queue: payment.retry.queue
+    retry-routing-key: retry.payment
