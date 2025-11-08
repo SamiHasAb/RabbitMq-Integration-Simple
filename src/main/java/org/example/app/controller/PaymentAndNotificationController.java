@@ -1,4 +1,4 @@
-package org.example.app;
+package org.example.app.controller;
 
 import java.time.LocalTime;
 import java.util.concurrent.TimeUnit;
