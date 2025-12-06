@@ -1,25 +1,37 @@
 package org.example.app.config;
 
+import com.rabbitmq.client.Channel;
 import java.util.concurrent.TimeUnit;
 import org.example.app.config.RabbitMQProperties.QueueConfig;
+import org.example.app.listener.NotificationListener;
+import org.example.app.listener.OrderListener;
+import org.example.app.listener.PaymentListener;
+import org.springframework.amqp.core.AcknowledgeMode;
 import org.springframework.amqp.core.Binding;
 import org.springframework.amqp.core.Declarables;
 import org.springframework.amqp.core.DirectExchange;
+import org.springframework.amqp.core.Message;
 import org.springframework.amqp.core.Queue;
 import org.springframework.amqp.core.QueueBuilder;
+import org.springframework.amqp.rabbit.connection.ConnectionFactory;
+import org.springframework.amqp.rabbit.listener.SimpleMessageListenerContainer;
+import org.springframework.amqp.rabbit.listener.adapter.MessageListenerAdapter;
 import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
 import org.springframework.amqp.support.converter.MessageConverter;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
 public class RabbitMQConfig {
 
-  @Autowired
   private RabbitMQProperties properties;
 
-  // Common Exchanges (declare them as separate beans first)
+  public RabbitMQConfig(RabbitMQProperties properties) {
+    this.properties = properties;
+  }
+
+  // Common Exchanges
   @Bean
   public DirectExchange dlxExchange() {
     return new DirectExchange("dlx.exchange", true, false);
@@ -30,20 +42,100 @@ public class RabbitMQConfig {
     return new DirectExchange("retry.exchange", true, false);
   }
 
-  // Main Queue Beans (for @RabbitListener injection)
-  @Bean
+  //Queues
+  @Bean("paymentQueue")
   public Queue paymentQueue() {
     return buildMainQueue(properties.getPaymentConfig());
   }
 
-  @Bean
+  @Bean("notificationQueue")
   public Queue notificationQueue() {
     return buildMainQueue(properties.getNotificationConfig());
   }
 
-  @Bean
+  @Bean("orderQueue")
   public Queue orderQueue() {
     return buildMainQueue(properties.getOrderConfig());
+  }
+
+  // Add MessageListenerContainers for each queue
+  @Bean
+  public SimpleMessageListenerContainer paymentListenerContainer(
+      ConnectionFactory connectionFactory,
+      PaymentListener paymentListener,
+      @Qualifier("paymentQueue") Queue paymentQueue) {
+
+
+    return createListenerContainer(
+        connectionFactory,
+        paymentListener,
+        "handlePayment", // This should match actual method name
+        properties.getPaymentConfig().getQueue()
+    );
+  }
+
+  @Bean
+  public SimpleMessageListenerContainer notificationListenerContainer(
+      ConnectionFactory connectionFactory,
+      NotificationListener notificationListener,
+      @Qualifier("notificationQueue") Queue notificationQueue) {
+
+    return createListenerContainer(
+        connectionFactory,
+        notificationListener,
+        "notificationListener",
+        properties.getNotificationConfig().getQueue()
+    );
+  }
+
+  @Bean
+  public SimpleMessageListenerContainer orderListenerContainer(
+      ConnectionFactory connectionFactory,
+      OrderListener orderListener,
+      @Qualifier("orderQueue") Queue orderQueue) {
+
+    return createListenerContainer(
+        connectionFactory,
+        orderListener,
+        "orderListener",
+        properties.getOrderConfig().getQueue()
+    );
+  }
+
+  private SimpleMessageListenerContainer createListenerContainer(
+      ConnectionFactory connectionFactory,
+      Object listener,
+      String methodName,
+      String queueName) {
+
+    SimpleMessageListenerContainer container = new SimpleMessageListenerContainer();
+    container.setConnectionFactory(connectionFactory);
+    container.setQueueNames(queueName);
+
+    // Create a custom MessageListenerAdapter that handles your method signature
+    MessageListenerAdapter adapter = new MessageListenerAdapter(listener) {
+      @Override
+      protected Object[] buildListenerArguments(Object extractedMessage, Channel channel, Message message) {
+        // Return the arguments that match method signature: handlePayment(Message, Channel)
+        return new Object[] { message, channel };
+      }
+    };
+    adapter.setMessageConverter(jsonMessageConverter());
+    // Configure the adapter to handle your custom method signature
+    adapter.setDefaultListenerMethod(methodName);
+
+    container.setMessageListener(adapter);
+    container.setAcknowledgeMode(AcknowledgeMode.MANUAL);
+    container.setAutoStartup(false);
+    container.setConcurrentConsumers(1);
+    container.setMaxConcurrentConsumers(1);
+    container.setPrefetchCount(1);
+
+    // Important: Set these properties for faster shutdown
+    container.setForceCloseChannel(true);
+    container.setShutdownTimeout(5000); // 5 seconds max for shutdown
+
+    return container;
   }
 
   // Exchange and Queue Declarations with Bindings
@@ -83,7 +175,6 @@ public class RabbitMQConfig {
             properties.getPaymentConfig().getDlxRoutingKey(),
             null),
 
-        // Repeat the same pattern for notification and order...
         // Notification Exchange
         new DirectExchange(properties.getNotificationConfig().getExchange(), true, false),
 
