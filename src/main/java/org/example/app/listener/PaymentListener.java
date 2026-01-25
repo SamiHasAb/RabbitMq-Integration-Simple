@@ -1,10 +1,10 @@
-package org.example.app.receiver;
+package org.example.app.listener;
 
-import static org.example.app.sender.OrderService.PAYMENT_METHOD_KEY;
-
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rabbitmq.client.Channel;
 import java.io.IOException;
 import java.time.LocalTime;
+import java.util.Map;
 import org.example.app.config.RabbitMQProperties;
 import org.example.app.exception.InvalidPaymentException;
 import org.example.app.exception.ServerIsBusyException;
@@ -12,13 +12,12 @@ import org.example.app.model.Payment;
 import org.example.app.model.PaymentType;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.core.MessageProperties;
-import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 @Service
-public class PaymentReceiver {
+public class PaymentListener {
 
   @Autowired
   private RabbitTemplate rabbitTemplate;
@@ -26,47 +25,83 @@ public class PaymentReceiver {
   @Autowired
   private RabbitMQProperties properties;
 
-  @RabbitListener(queues = "#{@paymentQueue}")
-  public void receivePayment(Payment payment, Message message, Channel channel)
+  @Autowired
+  private ObjectMapper objectMapper;
+
+  public void handlePayment(Message message, Channel channel)
       throws IOException {
     try {
-      // Simulate payment processing (throw exception to simulate failure)
+//      Payment payment = (Payment) rabbitTemplate.getMessageConverter().fromMessage(message);
+      Payment payment = convertMessageToPayment(message);
 
-      System.out.println(
-          "\n[" + LocalTime.now() + "] Received a new payment: \nPayment : [" + payment.toString() + "]  Message ["
-              + message.toString() + "] ");
 
-      String paymentMethodValue = message.getMessageProperties().getHeaders().get(PAYMENT_METHOD_KEY).toString();
-      processPayment(payment, paymentMethodValue);
+      System.out.println("\n[" + LocalTime.now() + "] Received a new payment: \nPayment : [" + payment.toString() + "]");
+
+      processPayment(payment.getPaymentType());
       System.out.println("Succeed payment : " + payment);
       channel.basicAck(message.getMessageProperties().getDeliveryTag(), false);
     } catch (ServerIsBusyException e) {
       System.err.println("[" + LocalTime.now() + "] Error in processing the payment. " + e.getMessage());
-      handleRetry(payment, message, channel);
+      handleRetry( message, channel);
     } catch (InvalidPaymentException ex) {
 
       System.err.println("\n[" + LocalTime.now() + "] " + ex.getMessage() + " - send directly to DLQ.");
       channel.basicReject(message.getMessageProperties().getDeliveryTag(), false);
+    } catch (IllegalArgumentException e) {
+      System.err.println("Corrupted message :");
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
   }
 
-  private void processPayment(Payment payment, String paymentMethod) throws Exception {
+  private Payment convertMessageToPayment(Message message) throws IOException {
+    try {
+      // Try direct conversion first
+      Object converted = rabbitTemplate.getMessageConverter().fromMessage(message);
 
+      if (converted instanceof Payment) {
+        return (Payment) converted;
+      } else if (converted instanceof Map) {
+        // Convert Map to Payment using ObjectMapper
+        @SuppressWarnings("unchecked")
+        Map<String, Object> map = (Map<String, Object>) converted;
 
-    if ((paymentMethod).contains(PaymentType.CARD.getMethod())) {
-      throw new InvalidPaymentException("Payment processing failed. Invalid payment");
-    } else if ((paymentMethod).contains(PaymentType.SWISH.getMethod())) {
-      throw new ServerIsBusyException("Payment processing failed. Server is busy");
+        // Convert paymentType string to enum
+        if (map.containsKey("paymentType")) {
+          String paymentTypeStr = map.get("paymentType").toString();
+          map.put("paymentType", PaymentType.valueOf(paymentTypeStr));
+        }
+
+        return objectMapper.convertValue(map, Payment.class);
+      } else {
+        throw new IllegalArgumentException("Cannot convert message to Payment: " + converted.getClass());
+      }
+    } catch (Exception e) {
+      // Fallback: Try to deserialize from JSON string
+      String json = new String(message.getBody());
+      return objectMapper.readValue(json, Payment.class);
     }
   }
 
-  private void handleRetry(Payment payment, Message amqpMessage, Channel channel)
+  private void processPayment(PaymentType paymentType) {
+    if (paymentType == null) {
+      throw new IllegalArgumentException("payment method can not be null");
+    }
+    switch(paymentType) {
+      case CARD -> throw new InvalidPaymentException("Payment processing failed. Invalid payment");
+      case SWISH -> throw new ServerIsBusyException("Payment processing failed. Server is busy");
+      case CASH -> System.out.println("Cash payment processed");
+    }
+  }
+
+  private void handleRetry(Message amqpMessage, Channel channel)
       throws IOException {
     Integer retryCount = getRetryCount(amqpMessage);
     System.out.println("[" + LocalTime.now() + "] handleRetry retryCount : [" + (retryCount + 1) + "]");
     String queueType = "payment";
+//    Payment payment = (Payment) rabbitTemplate.getMessageConverter().fromMessage(amqpMessage);
+    Payment payment = convertMessageToPayment(amqpMessage);
+
 
     RabbitMQProperties.QueueConfig config = properties.getConfigs().get(queueType);
 
@@ -90,7 +125,6 @@ public class PaymentReceiver {
           payment,
           msg -> {
             msg.getMessageProperties().setHeader("x-retry-count", finalRetryCount);
-            msg.getMessageProperties().setHeader(PAYMENT_METHOD_KEY, messageProperties.getHeaders().get(PAYMENT_METHOD_KEY));
             return msg;
           }
       );

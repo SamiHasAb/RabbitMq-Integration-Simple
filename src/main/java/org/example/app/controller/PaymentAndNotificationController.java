@@ -27,11 +27,11 @@ public class PaymentAndNotificationController {
 
     System.out.println("\n[" + LocalTime.now() + "] Testing the queue by sending messages......");
 
-    orderService.sendPayment(new Payment("pay-111", 49.99), PaymentType.CASH);
+    orderService.sendPayment(new Payment("pay-111", 49.99, PaymentType.CASH));
     Thread.sleep(TimeUnit.SECONDS.toMillis(2));
-    orderService.sendPayment(new Payment("pay-333", 49.99), PaymentType.CARD);
+    orderService.sendPayment(new Payment("pay-333", 49.99, PaymentType.CARD));
     Thread.sleep(TimeUnit.SECONDS.toMillis(2));
-    orderService.sendPayment(new Payment("pay-222", 49.99), PaymentType.SWISH);
+    orderService.sendPayment(new Payment("pay-222", 49.99, PaymentType.SWISH));
 
 //    orderService.sendNotification("email");  // Routes to "notifications" queue
 //    orderService.sendOrder("order");  // Routes to "notifications" queue

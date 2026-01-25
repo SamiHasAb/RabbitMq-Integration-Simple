@@ -1,0 +1,26 @@
+## Moving messages between queues
+
+###  All Queues
+GET  http://localhost:8080/api/v1/queue
+### All Queues and their bindings configuration
+GET  http://localhost:8080/api/v1/queue/config
+
+## Payment
+### Count
+GET http://localhost:8080/api/v1/queue/payment.queue/count
+### Peak
+GET http://localhost:8080/api/v1/queue/payment.queue/peak
+### Move
+GET http://localhost:8080/api/v1/queue/payment.queue/move
+### Move more that one message
+GET http://localhost:8080/api/v1/queue/payment.queue/move?numberOfMessages=5
+
+## Payment DLQ
+### Count
+GET http://localhost:8080/api/v1/queue/payment.dlq/count
+### Peak
+GET http://localhost:8080/api/v1/queue/payment.dlq/peak
+### Move
+GET http://localhost:8080/api/v1/queue/payment.dlq/move
+### Move more that one message
+GET http://localhost:8080/api/v1/queue/payment.dlq/move?numberOfMessages=5

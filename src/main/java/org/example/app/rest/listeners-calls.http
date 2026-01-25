@@ -1,0 +1,35 @@
+### All Listeners
+GET http://localhost:8080/api/rabbitmq/listeners/status
+
+### paymentListener
+GET  http://localhost:8080/api/rabbitmq/listeners/paymentListener/status
+###
+POST http://localhost:8080 /api/rabbitmq/listeners/paymentListener/start
+###
+GET http://localhost:8080/api/rabbitmq/listeners/paymentListener/debug
+###
+POST http://localhost:8080/api/rabbitmq/listeners/paymentListener/stop
+###
+POST http://localhost:8080/api/rabbitmq/listeners/paymentListener/force-stop
+
+### notificationListener
+GET  http://localhost:8080/api/rabbitmq/listeners/notificationListener/status
+###
+POST http://localhost:8080 /api/rabbitmq/listeners/notificationListener/start
+###
+POST http://localhost:8080 /api/rabbitmq/listeners/notificationListener/debug
+###
+POST http://localhost:8080 /api/rabbitmq/listeners/notificationListener/stop
+###
+POST http://localhost:8080 /api/rabbitmq/listeners/notificationListener/force-stop
+
+### orderListener
+GET  http://localhost:8080/api/rabbitmq/listeners/orderListener/status
+###
+POST http://localhost:8080 /api/rabbitmq/listeners/orderListener/start
+###
+POST http://localhost:8080 /api/rabbitmq/listeners/orderListener/debug
+###
+POST  http://localhost:8080/api/rabbitmq/listeners/orderListener/stop
+###
+POST  http://localhost:8080/api/rabbitmq/listeners/orderListener/force-stop

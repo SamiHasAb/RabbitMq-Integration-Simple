@@ -1,5 +1,8 @@
 package org.example.app.config;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.rabbitmq.client.Channel;
 import java.util.concurrent.TimeUnit;
 import org.example.app.config.RabbitMQProperties.QueueConfig;
@@ -16,9 +19,9 @@ import org.springframework.amqp.core.QueueBuilder;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import org.springframework.amqp.rabbit.listener.SimpleMessageListenerContainer;
 import org.springframework.amqp.rabbit.listener.adapter.MessageListenerAdapter;
+import org.springframework.amqp.support.converter.DefaultClassMapper;
 import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
 import org.springframework.amqp.support.converter.MessageConverter;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -62,9 +65,7 @@ public class RabbitMQConfig {
   @Bean
   public SimpleMessageListenerContainer paymentListenerContainer(
       ConnectionFactory connectionFactory,
-      PaymentListener paymentListener,
-      @Qualifier("paymentQueue") Queue paymentQueue) {
-
+      PaymentListener paymentListener) {
 
     return createListenerContainer(
         connectionFactory,
@@ -77,8 +78,7 @@ public class RabbitMQConfig {
   @Bean
   public SimpleMessageListenerContainer notificationListenerContainer(
       ConnectionFactory connectionFactory,
-      NotificationListener notificationListener,
-      @Qualifier("notificationQueue") Queue notificationQueue) {
+      NotificationListener notificationListener) {
 
     return createListenerContainer(
         connectionFactory,
@@ -91,8 +91,7 @@ public class RabbitMQConfig {
   @Bean
   public SimpleMessageListenerContainer orderListenerContainer(
       ConnectionFactory connectionFactory,
-      OrderListener orderListener,
-      @Qualifier("orderQueue") Queue orderQueue) {
+      OrderListener orderListener) {
 
     return createListenerContainer(
         connectionFactory,
@@ -260,6 +259,29 @@ public class RabbitMQConfig {
 
   @Bean
   public MessageConverter jsonMessageConverter() {
-    return new Jackson2JsonMessageConverter();
+
+    ObjectMapper mapper = new ObjectMapper();
+
+    mapper.registerModule(new JavaTimeModule());
+
+    mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+
+    // This is important for enum deserialization from string values
+    mapper.enable(DeserializationFeature.READ_ENUMS_USING_TO_STRING);
+
+    Jackson2JsonMessageConverter converter = new Jackson2JsonMessageConverter(mapper);
+
+    // Set trusted packages
+    converter.setClassMapper(classMapper());
+
+    return converter;
+  }
+
+  @Bean
+  public DefaultClassMapper classMapper() {
+    DefaultClassMapper classMapper = new DefaultClassMapper();
+//    classMapper.setTrustedPackages("org.example.app.model.*");
+    classMapper.setTrustedPackages("*");
+    return classMapper;
   }
 }

@@ -13,7 +13,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.amqp.rabbit.listener.SimpleMessageListenerContainer;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.event.ContextRefreshedEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
@@ -35,9 +34,9 @@ public class RabbitListenerService {
 
   @Autowired
   public RabbitListenerService(
-      @Qualifier("paymentListenerContainer") SimpleMessageListenerContainer paymentListenerContainer,
-      @Qualifier("notificationListenerContainer") SimpleMessageListenerContainer notificationListenerContainer,
-      @Qualifier("orderListenerContainer") SimpleMessageListenerContainer orderListenerContainer,
+      SimpleMessageListenerContainer paymentListenerContainer,
+      SimpleMessageListenerContainer notificationListenerContainer,
+      SimpleMessageListenerContainer orderListenerContainer,
       RabbitMQProperties rabbitMQProperties
   ) {
     this.rabbitMQProperties = rabbitMQProperties;

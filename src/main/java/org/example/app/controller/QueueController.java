@@ -44,8 +44,8 @@ public class QueueController {
   }
 
   @GetMapping("/{queueName}/move")
-  public ResponseEntity<?> moveMessage(@PathVariable String queueName, @RequestParam(defaultValue = "1") String number){
-    String str = queueService.moveMessage( queueName, number);
-    return ResponseEntity.ok(str);
+  public ResponseEntity<?> moveMessage(@PathVariable String queueName, @RequestParam(value = "numberOfMessages", defaultValue = "1") int numberOfMessages){
+    List<String> strings = queueService.moveMessage(queueName, numberOfMessages);
+    return ResponseEntity.ok(strings);
   }
 }
