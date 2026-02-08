@@ -8,9 +8,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.tomcat.util.buf.StringUtils;
 import org.example.app.config.RabbitMQProperties;
 import org.example.app.config.RabbitMQProperties.QueueConfig;
 import org.example.app.model.QueueLookupResult;
@@ -103,16 +101,16 @@ public class QueueService {
     String finalQueueName = queueName;
 
     if (resultOpt.isEmpty()) {
-      System.out.println("Queue not found: " + finalQueueName);
+      log.error("Queue not found: {}", finalQueueName);
       throw new IllegalArgumentException(String.format("Queue not [%s] found", queueName));
     } else {
       QueueLookupResult result = resultOpt.get();
       boolean isDefault = result.getType() == QueueType.DEFAULT;
 
       if (isDefault) {
-        System.out.println("Found in default queues: " + result.getEntry().getKey());
+        log.info("Found [{}] in default queues", result.getEntry().getKey());
       } else {
-        System.out.println("Found in DLQs: " + result.getEntry().getValue().getDlq());
+        log.info("Found [{}] in DLQs", result.getEntry().getValue().getDlq());
       }
 
       moveToDLQ = isDefault;
@@ -140,7 +138,7 @@ public class QueueService {
       }
       messages.add(
           String.format("%s messages moved from queue: [%s] to queue [%s]", number, queueName, deadLetterQueueName));
-      collection.add(StringUtils.join(String.valueOf(messages), ", "));
+      collection.add(String.valueOf(messages));
       return collection;
     } else {
       int number;
@@ -156,7 +154,7 @@ public class QueueService {
       }
       messages.add(
           String.format("%s messages moved from queue: [%s] to queue [%s]", number, deadLetterQueueName, queueName));
-      collection.add(StringUtils.join(String.valueOf(messages), ", "));
+      collection.add(String.valueOf(messages));
 
       return collection;
     }
@@ -164,11 +162,8 @@ public class QueueService {
 
   private void postInDeadLetterQueue(ArrayList<String> messages, String dlq,String dlxRoutingKey, Message receivedMessage,
       String exchangeName, String receivedRoutingKey) {
-    //TODO: Check if the xDeathHeader is added.
-    //getQueueName
+
     MessageProperties receivedMessageProperties = receivedMessage.getMessageProperties();
-
-
     List<HashMap<String, List<String>>> xDeathHeader = getXDeath(receivedRoutingKey, "Original Queue name");
     receivedMessageProperties.setHeader("x-death", xDeathHeader);
 
@@ -194,10 +189,6 @@ public class QueueService {
 
     log.info("Moving message from Dead Letter queue {}.\nRoutingKey: [{}]", "DLQ for " + queueName, routingKey);
     messages.add(new String(receivedMessage.getBody(), StandardCharsets.UTF_8));
-    System.out.println("exchangeName : " + exchangeName);
-    System.out.println("rountingKey : " + routingKey);
-    System.out.println("defaultProperties : " + defaultProperties.toString());
-    System.out.println("ReceivedMessage Body: " + receivedMessage.getBody().toString()); //Fix this
     rabbitTemplate.send(exchangeName, routingKey, new Message(receivedMessage.getBody(), defaultProperties));
   }
 
